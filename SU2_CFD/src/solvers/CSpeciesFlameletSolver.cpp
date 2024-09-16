@@ -577,25 +577,28 @@ unsigned long CSpeciesFlameletSolver::SetScalarSources(const CConfig* config, CF
 
       
   } else {
-    /*--- implementation of linear clipping as source term correction*/
-      vector<su2double> scalar2 = scalars;
-      su2double x = scalars[I_PROGVAR];
+    /*--- implementation of linear clipping as source term correction dependent on the inlet Progress Variable*/
+    su2double prog_unburnt = config->GetSpecies_Init()[I_PROGVAR];
+    vector<su2double> scalar2 = scalars;
+    su2double x = scalars[I_PROGVAR];
 
-      vector<su2double> table_sources2(config->GetNControlVars() + 2 * config->GetNUserScalars());
+    vector<su2double> table_sources2(config->GetNControlVars() + 2 * config->GetNUserScalars());
 
-      su2double x0 = -0.56;
-      su2double x1 = -0.47;
-      su2double x2 =  0.03;
+    // TODO: Find replacements for 0.1 and 0.7
+    su2double x0 = prog_unburnt;
+    su2double x1 = prog_unburnt + 0.15;
+    su2double x2 = prog_unburnt + 0.8;
+    su2double xmax = prog_unburnt + 0.325;
 
-      if ((scalars[I_PROGVAR] > x0) && (scalars[I_PROGVAR] <= x1)) {
-        scalar2[I_PROGVAR] = x1;
-        misses = fluid_model_local->EvaluateDataSet(scalar2, FLAMELET_LOOKUP_OPS::SOURCES, table_sources2);
-        su2double S = table_sources2[I_PROGVAR];
-        table_sources[I_PROGVAR] = S*((x-x0)/(x1-x0));
-      }
-      if ((x < x0) || (x>x2)) {
-        table_sources[I_PROGVAR] = 0.0;
-      }
+    if ((scalars[I_PROGVAR] > x0) && (scalars[I_PROGVAR] <= x1)) {
+      scalar2[I_PROGVAR] = x1;
+      misses = fluid_model_local->EvaluateDataSet(scalar2, FLAMELET_LOOKUP_OPS::SOURCES, table_sources2);
+      su2double S = table_sources2[I_PROGVAR];
+      table_sources[I_PROGVAR] = S*((x-x0)/(x1-x0));
+    }
+    if ((x < x0) || (x>x2)) {
+      table_sources[I_PROGVAR] = 0.0;
+    }
   }
   nodes->SetTableMisses(iPoint, misses);
 
