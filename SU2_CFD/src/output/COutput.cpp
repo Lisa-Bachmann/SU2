@@ -1103,8 +1103,9 @@ void COutput::SetHistoryFileOutput(const CConfig *config) {
 }
 
 void COutput::SetScreenHeader(const CConfig *config) {
-  if (config->GetMultizone_Problem())
+  if (config->GetMultizone_Problem()) {
     multiZoneHeaderTable->PrintHeader();
+  }
   convergenceTable->PrintHeader();
 }
 
