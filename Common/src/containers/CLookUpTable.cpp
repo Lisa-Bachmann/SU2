@@ -454,7 +454,7 @@ bool CLookUpTable::LookUp_XYZ(const std::vector<unsigned long>& idx_var, std::ve
   /*--- Perform quasi-3D interpolation for a vector of variables with names val_names_var
         on a query point with coordinates val_CV1, val_CV2, and val_CV3 ---*/
 
-  /* 1: Find table levels directly above and below the query point (the levels that sandwhich val_CV3) */
+  /* 1: Find table levels directly above and below the query point (the levels that sandwich val_CV3) */
   std::pair<unsigned long, unsigned long> inclusion_levels = FindInclusionLevels(val_CV3);
   bool within_z_limits = (inclusion_levels.first != inclusion_levels.second);
 
