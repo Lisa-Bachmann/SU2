@@ -560,8 +560,93 @@ unsigned long CSpeciesFlameletSolver::SetScalarSources(const CConfig* config, CF
 
   vector<su2double> table_sources(config->GetNControlVars() + 2 * config->GetNUserScalars());
   unsigned long misses = fluid_model_local->EvaluateDataSet(scalars, FLAMELET_LOOKUP_OPS::SOURCES, table_sources);
-  if (misses) {
-    table_sources[I_PROGVAR] = 0.0;
+
+
+  /*--- Apply either Vance correction or linear clipping to the Progress Variable source term */
+  table_sources[I_PROGVAR] = fmax(0, table_sources[I_PROGVAR]);
+
+  const string lut_correction = config->GetLUTCorrection();
+
+  if (lut_correction == "NONE") {
+
+  } else if (lut_correction == "LINEAR") {
+    /*--- implementation of linear clipping as source term correction dependent on the inlet Progress Variable*/
+    su2double prog_unburnt = config->GetSpecies_Init()[I_PROGVAR];
+    vector<su2double> scalar2 = scalars;
+    su2double x = scalars[I_PROGVAR];
+    vector<su2double> table_sources2(config->GetNControlVars() + 2 * config->GetNUserScalars());
+    // TODO: Find replacements for 0.1 and 0.7
+    su2double x0 = prog_unburnt;
+    su2double x1 = prog_unburnt + 0.15;
+    su2double x2 = prog_unburnt + 0.8;
+    su2double xmax = prog_unburnt + 0.325;
+    if ((scalars[I_PROGVAR] > x0) && (scalars[I_PROGVAR] <= x1)) {
+      scalar2[I_PROGVAR] = x1;
+      misses = fluid_model_local->EvaluateDataSet(scalar2, FLAMELET_LOOKUP_OPS::SOURCES, table_sources2);
+      su2double S = table_sources2[I_PROGVAR];
+      table_sources[I_PROGVAR] = S*((x-x0)/(x1-x0));
+    }
+    if ((x < x0) || (x>x2)) {
+      table_sources[I_PROGVAR] = 0.0;
+    }
+    if (misses) {
+      table_sources[I_PROGVAR] = 0.0;
+    }
+  } else if (lut_correction == "VANCE"){
+    /*--- implementation of Vance source term correction*/
+    vector<su2double> scalar2 = scalars;
+    su2double x = scalars[I_PROGVAR];
+
+    vector<su2double> table_sources2(config->GetNControlVars() + 2 * config->GetNUserScalars());
+
+    su2double temperature = fluid_model_local->GetTemperature();
+
+    su2double mixfrac = scalars[I_MIXFRAC];
+    su2double S_Term = 8/0.232;
+    su2double eqratio = (S_Term * mixfrac)/(1-mixfrac);
+
+    su2double eqratio_correction[6] = {1, 0.9, 0.8, 0.7, 0.6, 0.5};
+    su2double a[6][3] = {
+        {0.49, 0.43e-3, -0.61e-6},
+        {0.46, 0.47e-3, -0.62e-6},
+        {0.54, 0.34e-3, -0.61e-6},
+        {0.44, 0.42e-3, -0.7e-6},
+        {0.37, 0.32e-3, -0.77e-6},
+        {0.3, 1.15e-3, -1.36e-6}
+    };
+
+    su2double a_interp[3];
+
+    if (eqratio >= eqratio_correction[0]) {
+      a_interp[0] = a[0][0];
+      a_interp[1] = a[0][1];
+      a_interp[2] = a[0][2];
+    }
+    else if (eqratio <= eqratio_correction[5]) {
+      a_interp[0] = a[5][0];
+      a_interp[1] = a[5][1];
+      a_interp[2] = a[5][2];
+    }
+    else {
+      su2double p = 5 - (eqratio - 0.5) * 10;
+      int pl = floor(p);
+      int ph = ceil(p);
+
+      // linear interpolation
+      for (int i = 0; i < 3; i++) {
+        a_interp[i] = (a[pl][i]*((ph-p) + a[ph][i]*(p-pl)))/(ph-pl);
+      }
+    }
+
+
+    su2double f = a_interp[0] + a_interp[1] * temperature + a_interp[2] * temperature * temperature; // 0.3 for T=0 (eq = 0.5), 0 for T=1060, neg for T> 1060
+    su2double s = (0.5 * std::tanh((temperature - 1000) / 50)) + 0.5; // bigger 0 for T>700K, 1 for T>1300 K
+    su2double F = s + (1 - s) * f;
+
+    table_sources[I_PROGVAR] = table_sources[I_PROGVAR] * F;
+
+  } else {
+      std::cout << "Invalid input for LUT_CORRECTION.\n Options are: 'NONE', 'LINEAR', 'VANCE'. \n No correction is done (as if NONE)" << std::endl;
   }
 
   table_sources[I_PROGVAR] = fmax(0, table_sources[I_PROGVAR]);

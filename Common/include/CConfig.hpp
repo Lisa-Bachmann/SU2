@@ -1237,8 +1237,9 @@ private:
   su2double* spark_reaction_rates; /*!< \brief Source terms for flamelet spark ignition option. */
   unsigned short nspark;           /*!< \brief Number of source terms for spark initialization. */
   bool preferential_diffusion = false;  /*!< \brief Preferential diffusion physics for flamelet solver.*/
-  bool vance_correction = false;  /*!< \brief Vance correction of the progress variable for flamelet solver.*/
+  string lut_correction;        /*!< \brief defining lookup table correction */
 
+  //string* vance_correction = None   /*!< \brief Vance correction of the progress variable for flamelet solver. Vance/linear/None*/
   /*--- lookup table ---*/
   unsigned short n_scalars = 0;       /*!< \brief Number of transported scalars for flamelet LUT approach. */
   unsigned short n_lookups = 0;       /*!< \brief Number of lookup variables, for visualization only. */
@@ -2203,14 +2204,10 @@ public:
   inline void SetPreferentialDiffusion(bool input) { preferential_diffusion = input; }
 
   /*!
-   * \brief Vance correction progress variable combustion problem.
+   * \brief Get correction of LUT.
+   * \return Correction of LUT.
    */
-  bool GetVanceCorrection() const { return vance_correction; }
-
-  /*!
-   * \brief Vance correction progress variable combustion problem.
-   */
-  inline void SetVanceCorrection(bool input) { vance_correction = input; }
+  string GetLUTCorrection(void) const { return lut_correction; }
 
   /*!
    * \brief Get the number of control variables for flamelet model.
